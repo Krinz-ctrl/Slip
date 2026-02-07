@@ -45,8 +45,8 @@ dependencies {
     // WorkManager for background operations
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     
-    // mDNS discovery
-    implementation("javax.jmdns:jmdns:3.5.1")
+    // mDNS discovery - temporarily commented out
+    // implementation("javax.jmdns:jmdns:3.4.1")
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

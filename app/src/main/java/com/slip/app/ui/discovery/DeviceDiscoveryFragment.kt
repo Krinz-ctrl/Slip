@@ -18,6 +18,7 @@ import com.slip.app.databinding.FragmentDeviceDiscoveryBinding
 import com.slip.app.domain.model.DiscoveredDevice
 import com.slip.app.domain.model.FileMetadata
 import com.slip.app.service.network.DeviceDiscoveryService
+import com.slip.app.service.network.SimpleDeviceDiscoveryService
 import com.slip.app.service.network.TransferManager
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -31,11 +32,13 @@ class DeviceDiscoveryFragment : Fragment() {
     private val binding get() = _binding!!
     
     private lateinit var deviceDiscoveryService: DeviceDiscoveryService
+    private lateinit var simpleDiscoveryService: SimpleDeviceDiscoveryService
     private lateinit var transferManager: TransferManager
     private lateinit var deviceAdapter: DeviceAdapter
     
     private var selectedDevice: DiscoveredDevice? = null
     private var filesToTransfer: List<FileMetadata> = emptyList()
+    private var useSimpleDiscovery = false
     
     companion object {
         private const val TAG = "DeviceDiscoveryFragment"
@@ -52,7 +55,17 @@ class DeviceDiscoveryFragment : Fragment() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        deviceDiscoveryService = DeviceDiscoveryService(requireContext())
+        
+        // Try to initialize jMDNS discovery first
+        try {
+            deviceDiscoveryService = DeviceDiscoveryService(requireContext())
+            useSimpleDiscovery = false
+        } catch (e: Exception) {
+            Log.w(TAG, "jMDNS not available, using simple discovery", e)
+            simpleDiscoveryService = SimpleDeviceDiscoveryService(requireContext())
+            useSimpleDiscovery = true
+        }
+        
         transferManager = TransferManager.getInstance(requireContext())
         
         // Get files to transfer
@@ -120,21 +133,42 @@ class DeviceDiscoveryFragment : Fragment() {
         binding.textViewStatus.text = "Discovering devices..."
         binding.buttonConnect.isEnabled = false
         
-        deviceDiscoveryService.startDiscovery()
-        
-        // Listen to discovery updates
-        viewLifecycleOwner.lifecycleScope.launch {
-            deviceDiscoveryService.devices.collect { devices ->
-                updateDeviceList(devices)
+        if (useSimpleDiscovery) {
+            simpleDiscoveryService.startDiscovery()
+            
+            // Listen to discovery updates
+            viewLifecycleOwner.lifecycleScope.launch {
+                simpleDiscoveryService.devices.collect { devices ->
+                    updateDeviceList(devices)
+                }
             }
-        }
-        
-        viewLifecycleOwner.lifecycleScope.launch {
-            deviceDiscoveryService.discoveryError.collect { error ->
-                error?.let {
-                    Log.e(TAG, "Discovery error: $it")
-                    binding.textViewStatus.text = "Discovery error: $it"
-                    binding.progressBarDiscovery.visibility = View.GONE
+            
+            viewLifecycleOwner.lifecycleScope.launch {
+                simpleDiscoveryService.discoveryError.collect { error ->
+                    error?.let {
+                        Log.e(TAG, "Discovery error: $it")
+                        binding.textViewStatus.text = "Discovery error: $it"
+                        binding.progressBarDiscovery.visibility = View.GONE
+                    }
+                }
+            }
+        } else {
+            deviceDiscoveryService.startDiscovery()
+            
+            // Listen to discovery updates
+            viewLifecycleOwner.lifecycleScope.launch {
+                deviceDiscoveryService.devices.collect { devices ->
+                    updateDeviceList(devices)
+                }
+            }
+            
+            viewLifecycleOwner.lifecycleScope.launch {
+                deviceDiscoveryService.discoveryError.collect { error ->
+                    error?.let {
+                        Log.e(TAG, "Discovery error: $it")
+                        binding.textViewStatus.text = "Discovery error: $it"
+                        binding.progressBarDiscovery.visibility = View.GONE
+                    }
                 }
             }
         }
@@ -156,7 +190,13 @@ class DeviceDiscoveryFragment : Fragment() {
     
     private fun refreshDiscovery() {
         Log.d(TAG, "Refreshing discovery")
-        deviceDiscoveryService.refresh()
+        
+        if (useSimpleDiscovery) {
+            simpleDiscoveryService.refresh()
+        } else {
+            deviceDiscoveryService.refresh()
+        }
+        
         binding.textViewStatus.text = "Refreshing..."
         binding.progressBarDiscovery.visibility = View.VISIBLE
     }
@@ -213,7 +253,12 @@ class DeviceDiscoveryFragment : Fragment() {
         super.onDestroyView()
         
         // Stop discovery and transfer when fragment is destroyed
-        deviceDiscoveryService.stopDiscovery()
+        if (useSimpleDiscovery) {
+            simpleDiscoveryService.stopDiscovery()
+        } else {
+            deviceDiscoveryService.stopDiscovery()
+        }
+        
         transferManager.stopReceiving()
         
         _binding = null

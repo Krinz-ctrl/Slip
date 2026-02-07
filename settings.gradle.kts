@@ -16,6 +16,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Add Maven repository for jMDNS (should be in Maven Central)
+        maven {
+            url = uri("https://repo1.maven.org/maven2/")
+        }
     }
 }
 
