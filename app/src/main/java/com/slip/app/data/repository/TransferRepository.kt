@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.slip.app.domain.model.TransferSession
 import com.slip.app.domain.model.TransferStatus
+import com.slip.app.domain.model.TransferType
 import com.slip.app.service.work.TransferWorkManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -213,7 +214,7 @@ class TransferRepository private constructor(private val context: Context) {
         // For now, create a dummy session
         return TransferSession(
             id = "restored_transfer",
-            type = com.slip.app.domain.model.TransferType.SEND_FILES,
+            type = TransferType.SEND_FILES,
             status = TransferStatus.IN_PROGRESS,
             totalSize = 1000000L,
             transferredSize = 500000L,

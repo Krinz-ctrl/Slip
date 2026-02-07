@@ -50,12 +50,3 @@ enum class DeviceType {
     LAPTOP,
     UNKNOWN
 }
-
-/**
- * Transfer type enum
- */
-enum class TransferType {
-    FILE,
-    FOLDER,
-    MULTIPLE_FILES
-}

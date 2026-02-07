@@ -5,6 +5,7 @@ import android.util.Log
 import com.slip.app.domain.model.DiscoveredDevice
 import com.slip.app.domain.model.DeviceInfo
 import com.slip.app.domain.model.DeviceType
+import com.slip.app.domain.model.TransferType
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -219,7 +220,8 @@ class SimpleDeviceDiscoveryService(private val context: Context) {
                             deviceInfo = DeviceInfo(
                                 appName = "Slip",
                                 appVersion = "1.0",
-                                deviceType = DeviceType.UNKNOWN
+                                deviceType = DeviceType.UNKNOWN,
+                                supportedTransferTypes = listOf(TransferType.SEND_FILES, TransferType.SEND_FOLDER)
                             )
                         )
                         
