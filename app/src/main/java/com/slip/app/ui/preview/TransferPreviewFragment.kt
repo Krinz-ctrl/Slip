@@ -16,9 +16,12 @@ import com.slip.app.R
 import com.slip.app.databinding.FragmentTransferPreviewBinding
 import com.slip.app.domain.model.FileMetadata
 import com.slip.app.domain.model.FolderNode
+import com.slip.app.domain.model.TransferSession
+import com.slip.app.domain.model.TransferType
 import com.slip.app.service.FileScannerService
 import com.slip.app.service.ScanResult
 import com.slip.app.service.ScanStatus
+import com.slip.app.service.TransferService
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
@@ -154,8 +157,20 @@ class TransferPreviewFragment : Fragment() {
     
     private fun startTransfer(result: ScanResult) {
         Log.d(TAG, "Starting transfer with ${result.files.size} files")
-        // TODO: Navigate to transfer screen or start transfer process
-        // This will be implemented in later phases
+        
+        // Create transfer session
+        val transferSession = TransferSession(
+            type = if (result.folders.isNotEmpty()) TransferType.SEND_FOLDER else TransferType.SEND_FILES,
+            files = result.files,
+            rootFolder = result.folders.firstOrNull(),
+            totalSize = result.totalSize
+        )
+        
+        // Start the transfer service
+        TransferService.startTransfer(requireContext(), transferSession)
+        
+        // Go back to main screen to show transfer progress
+        parentFragmentManager.popBackStack()
     }
     
     override fun onDestroyView() {

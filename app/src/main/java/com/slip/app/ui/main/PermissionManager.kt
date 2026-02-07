@@ -10,6 +10,7 @@ class PermissionManager {
     
     companion object {
         const val STORAGE_PERMISSION_CODE = 1001
+        const val NOTIFICATION_PERMISSION_CODE = 1002
         
         /**
          * Check if storage permissions are granted
@@ -39,6 +40,20 @@ class PermissionManager {
         }
         
         /**
+         * Check if notification permission is granted (Android 13+)
+         */
+        fun hasNotificationPermission(context: Context): Boolean {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true // Notifications don't require permission on older versions
+            }
+        }
+        
+        /**
          * Get the required storage permissions based on Android version
          */
         fun getStoragePermissions(): Array<String> {
@@ -50,6 +65,17 @@ class PermissionManager {
                 )
             } else {
                 arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+        }
+        
+        /**
+         * Get notification permission if needed
+         */
+        fun getNotificationPermission(): Array<String> {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                emptyArray()
             }
         }
         
@@ -75,6 +101,13 @@ class PermissionManager {
         }
         
         /**
+         * Get notification permission rationale message
+         */
+        fun getNotificationPermissionRationaleMessage(): String {
+            return "Slip needs notification permission to show transfer progress in the background. Without notifications, you won't see when transfers complete or encounter errors."
+        }
+        
+        /**
          * Get permission denied message
          */
         fun getPermissionDeniedMessage(): String {
@@ -82,10 +115,24 @@ class PermissionManager {
         }
         
         /**
+         * Get notification permission denied message
+         */
+        fun getNotificationPermissionDeniedMessage(): String {
+            return "Notification permission was denied. Slip cannot show transfer progress without notifications. Please enable it in Settings to see transfer updates."
+        }
+        
+        /**
          * Get permission permanently denied message
          */
         fun getPermissionPermanentlyDeniedMessage(): String {
             return "Storage permission was permanently denied. Please enable it in Settings > Apps > Slip > Permissions to use file sharing features."
+        }
+        
+        /**
+         * Get notification permission permanently denied message
+         */
+        fun getNotificationPermissionPermanentlyDeniedMessage(): String {
+            return "Notification permission was permanently denied. Please enable it in Settings > Apps > Slip > Permissions to see transfer progress."
         }
     }
 }

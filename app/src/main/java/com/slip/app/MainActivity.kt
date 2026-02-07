@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var filePickerLauncher: ActivityResultLauncher<android.content.Intent>
     private lateinit var folderPickerLauncher: ActivityResultLauncher<android.content.Intent>
     private lateinit var permissionLauncher: ActivityResultLauncher<Array<String>>
+    private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     
     companion object {
         private const val TAG = "MainActivity"
@@ -47,11 +48,23 @@ class MainActivity : AppCompatActivity() {
             
             if (allGranted) {
                 Log.d(TAG, "All storage permissions granted")
-                // Show file picker after permissions are granted
-                showSendOptionsDialog()
+                checkNotificationPermissionsAndProceed()
             } else {
                 Log.w(TAG, "Some storage permissions denied")
                 handlePermissionDenied()
+            }
+        }
+        
+        // Notification permission launcher
+        notificationPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) {
+                Log.d(TAG, "Notification permission granted")
+                showSendOptionsDialog()
+            } else {
+                Log.w(TAG, "Notification permission denied")
+                handleNotificationPermissionDenied()
             }
         }
         
@@ -134,10 +147,20 @@ class MainActivity : AppCompatActivity() {
     private fun checkStoragePermissionsAndProceed() {
         if (PermissionManager.hasStoragePermissions(this)) {
             Log.d(TAG, "Storage permissions already granted")
-            showSendOptionsDialog()
+            checkNotificationPermissionsAndProceed()
         } else {
             Log.d(TAG, "Requesting storage permissions")
             requestStoragePermissions()
+        }
+    }
+    
+    private fun checkNotificationPermissionsAndProceed() {
+        if (PermissionManager.hasNotificationPermission(this)) {
+            Log.d(TAG, "Notification permission already granted")
+            showSendOptionsDialog()
+        } else {
+            Log.d(TAG, "Requesting notification permission")
+            requestNotificationPermission()
         }
     }
     
@@ -150,18 +173,50 @@ class MainActivity : AppCompatActivity() {
         }
         
         if (shouldShowRationale) {
-            showPermissionRationaleDialog()
+            showStoragePermissionRationaleDialog()
         } else {
             permissionLauncher.launch(permissions)
         }
     }
     
-    private fun showPermissionRationaleDialog() {
+    private fun requestNotificationPermission() {
+        val permissions = PermissionManager.getNotificationPermission()
+        
+        if (permissions.isEmpty()) {
+            showSendOptionsDialog()
+            return
+        }
+        
+        // Check if we should show rationale
+        val shouldShowRationale = ActivityCompat.shouldShowRequestPermissionRationale(
+            this, 
+            Manifest.permission.POST_NOTIFICATIONS
+        )
+        
+        if (shouldShowRationale) {
+            showNotificationPermissionRationaleDialog()
+        } else {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+    
+    private fun showStoragePermissionRationaleDialog() {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("Storage Permission Required")
             .setMessage(PermissionManager.getPermissionRationaleMessage())
             .setPositiveButton("Grant Permission") { _, _ ->
                 permissionLauncher.launch(PermissionManager.getStoragePermissions())
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    
+    private fun showNotificationPermissionRationaleDialog() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Notification Permission Required")
+            .setMessage(PermissionManager.getNotificationPermissionRationaleMessage())
+            .setPositiveButton("Grant Permission") { _, _ ->
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -181,10 +236,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
+    private fun handleNotificationPermissionDenied() {
+        val shouldShowRationale = ActivityCompat.shouldShowRequestPermissionRationale(
+            this, 
+            Manifest.permission.POST_NOTIFICATIONS
+        )
+        
+        if (shouldShowRationale) {
+            // Permission was denied, show rationale
+            Toast.makeText(this, PermissionManager.getNotificationPermissionDeniedMessage(), Toast.LENGTH_LONG).show()
+        } else {
+            // Permission was permanently denied
+            showNotificationPermissionPermanentlyDeniedDialog()
+        }
+    }
+    
     private fun showPermissionPermanentlyDeniedDialog() {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("Permission Required")
             .setMessage(PermissionManager.getPermissionPermanentlyDeniedMessage())
+            .setPositiveButton("Open Settings") { _, _ ->
+                openAppSettings()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+    
+    private fun showNotificationPermissionPermanentlyDeniedDialog() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Notification Permission Required")
+            .setMessage(PermissionManager.getNotificationPermissionPermanentlyDeniedMessage())
             .setPositiveButton("Open Settings") { _, _ ->
                 openAppSettings()
             }
