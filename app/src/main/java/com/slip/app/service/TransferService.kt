@@ -14,6 +14,8 @@ import androidx.core.app.NotificationCompat
 import com.slip.app.R
 import com.slip.app.domain.model.TransferSession
 import com.slip.app.domain.model.TransferStatus
+import com.slip.app.data.repository.TransferRepository
+import com.slip.app.service.work.TransferWorkManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -85,6 +87,8 @@ class TransferService : Service() {
     
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var notificationManager: NotificationManager
+    private lateinit var transferRepository: TransferRepository
+    private lateinit var workManager: TransferWorkManager
     
     // Current transfer session
     private var currentTransferSession: TransferSession? = null
@@ -98,7 +102,14 @@ class TransferService : Service() {
         Log.d(TAG, "TransferService created")
         
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        createNotificationChannel()
+        transferRepository = TransferRepository.getInstance(this)
+        workManager = TransferWorkManager(this)
+        
+        // Restore transfer state on service creation
+        transferRepository.restoreTransferState()
+        
+        // Listen to work manager updates
+        observeWorkManagerUpdates()
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -161,17 +172,17 @@ class TransferService : Service() {
         currentTransferSession = transferSession.copy(status = TransferStatus.CONNECTING)
         _transferState.value = currentTransferSession
         
+        // Update repository
+        transferRepository.startTransfer(transferSession)
+        
         // Start foreground service with notification
         startForeground(NOTIFICATION_ID, createNotification(currentTransferSession!!))
-        
-        // Start transfer process (will be implemented in later phases)
-        serviceScope.launch {
-            simulateTransferProgress()
-        }
     }
     
     private fun pauseTransfer() {
         Log.d(TAG, "Pausing transfer")
+        transferRepository.pauseTransfer()
+        
         currentTransferSession?.let { session ->
             if (session.status == TransferStatus.IN_PROGRESS) {
                 currentTransferSession = session.copy(
@@ -186,6 +197,8 @@ class TransferService : Service() {
     
     private fun resumeTransfer() {
         Log.d(TAG, "Resuming transfer")
+        transferRepository.resumeTransfer()
+        
         currentTransferSession?.let { session ->
             if (session.status == TransferStatus.PAUSED) {
                 currentTransferSession = session.copy(
@@ -193,17 +206,15 @@ class TransferService : Service() {
                     isPaused = false
                 )
                 _transferState.value = currentTransferSession
-                
-                // Resume transfer process
-                serviceScope.launch {
-                    simulateTransferProgress()
-                }
+                updateNotification()
             }
         }
     }
     
     private fun cancelTransfer() {
         Log.d(TAG, "Cancelling transfer")
+        transferRepository.cancelTransfer()
+        
         currentTransferSession?.let { session ->
             currentTransferSession = session.copy(
                 status = TransferStatus.CANCELLED,
@@ -293,41 +304,38 @@ class TransferService : Service() {
         )
     }
     
-    // Temporary simulation for testing - will be replaced with actual transfer logic
-    private suspend fun simulateTransferProgress() {
-        currentTransferSession?.let { session ->
-            var progress = session.transferredSize
-            
-            while (progress < session.totalSize && session.status == TransferStatus.IN_PROGRESS) {
-                kotlinx.coroutines.delay(1000)
-                
-                progress += (session.totalSize * 0.05).toLong() // Simulate 5% progress per second
-                
-                currentTransferSession = session.copy(
-                    status = TransferStatus.IN_PROGRESS,
-                    transferredSize = minOf(progress, session.totalSize),
-                    progress = (progress.toFloat() / session.totalSize) * 100f
-                )
-                
-                _transferState.value = currentTransferSession
-                updateNotification()
-                
-                if (progress >= session.totalSize) {
-                    // Transfer completed
-                    currentTransferSession = session.copy(
-                        status = TransferStatus.COMPLETED,
-                        transferredSize = session.totalSize,
-                        progress = 100f,
-                        endTime = System.currentTimeMillis()
+    private fun observeWorkManagerUpdates() {
+        serviceScope.launch {
+            // Listen to transfer progress from WorkManager
+            transferRepository.getTransferProgress().collect { progress ->
+                currentTransferSession?.let { session ->
+                    val updatedSession = session.copy(
+                        transferredSize = (session.totalSize * progress / 100).toLong(),
+                        progress = progress.toFloat()
                     )
-                    _transferState.value = currentTransferSession
+                    currentTransferSession = updatedSession
+                    _transferState.value = updatedSession
+                    updateNotification()
+                }
+            }
+        }
+        
+        serviceScope.launch {
+            // Listen to transfer status from WorkManager
+            transferRepository.getTransferStatus().collect { status ->
+                currentTransferSession?.let { session ->
+                    val updatedSession = session.copy(status = status)
+                    currentTransferSession = updatedSession
+                    _transferState.value = updatedSession
                     updateNotification()
                     
-                    // Stop service after completion
-                    serviceScope.launch {
-                        kotlinx.coroutines.delay(3000)
-                        stopForeground(true)
-                        stopSelf()
+                    // Handle completion
+                    if (status == TransferStatus.COMPLETED) {
+                        serviceScope.launch {
+                            kotlinx.coroutines.delay(3000)
+                            stopForeground(true)
+                            stopSelf()
+                        }
                     }
                 }
             }

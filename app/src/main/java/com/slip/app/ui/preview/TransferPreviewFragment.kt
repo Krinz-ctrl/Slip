@@ -21,7 +21,7 @@ import com.slip.app.domain.model.TransferType
 import com.slip.app.service.FileScannerService
 import com.slip.app.service.ScanResult
 import com.slip.app.service.ScanStatus
-import com.slip.app.service.TransferService
+import com.slip.app.ui.discovery.DeviceDiscoveryFragment
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
@@ -166,11 +166,12 @@ class TransferPreviewFragment : Fragment() {
             totalSize = result.totalSize
         )
         
-        // Start the transfer service
-        TransferService.startTransfer(requireContext(), transferSession)
-        
-        // Go back to main screen to show transfer progress
-        parentFragmentManager.popBackStack()
+        // Navigate to device discovery instead of starting transfer directly
+        val deviceFragment = DeviceDiscoveryFragment.newInstance(result.files)
+        parentFragmentManager.beginTransaction()
+            .replace(android.R.id.content, deviceFragment)
+            .addToBackStack(null)
+            .commit()
     }
     
     override fun onDestroyView() {

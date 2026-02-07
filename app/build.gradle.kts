@@ -41,6 +41,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity)
     implementation("androidx.appcompat:appcompat:1.6.1")
+    
+    // WorkManager for background operations
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    
+    // mDNS discovery
+    implementation("javax.jmdns:jmdns:3.5.1")
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
