@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import com.slip.app.databinding.ActivityMainBinding
 import com.slip.app.ui.main.MainViewModel
 import com.slip.app.ui.main.PermissionManager
+import com.slip.app.ui.preview.TransferPreviewFragment
 
 class MainActivity : AppCompatActivity() {
     
@@ -86,6 +87,7 @@ class MainActivity : AppCompatActivity() {
                     viewModel.onFilesSelected(uris)
                     Log.d(TAG, "Selected ${uris.size} files")
                     Toast.makeText(this, "Selected ${uris.size} files", Toast.LENGTH_SHORT).show()
+                    navigateToTransferPreview(uris)
                 } else {
                     Log.w(TAG, "No files selected")
                     Toast.makeText(this, "No files selected", Toast.LENGTH_SHORT).show()
@@ -111,6 +113,7 @@ class MainActivity : AppCompatActivity() {
                     viewModel.onFolderSelected(uri)
                     Log.d(TAG, "Selected folder: $uri")
                     Toast.makeText(this, "Folder selected for transfer", Toast.LENGTH_SHORT).show()
+                    navigateToTransferPreview(listOf(uri))
                 }
             } else {
                 Log.w(TAG, "Folder picker cancelled or failed")
@@ -249,5 +252,13 @@ class MainActivity : AppCompatActivity() {
             Log.e(TAG, "Failed to launch folder picker", e)
             Toast.makeText(this, "Failed to open folder picker", Toast.LENGTH_SHORT).show()
         }
+    }
+    
+    private fun navigateToTransferPreview(uris: List<Uri>) {
+        val fragment = TransferPreviewFragment.newInstance(uris)
+        supportFragmentManager.beginTransaction()
+            .replace(android.R.id.content, fragment)
+            .addToBackStack(null)
+            .commit()
     }
 }
