@@ -1,3 +1,61 @@
 <resources>
     <string name="app_name">Slip</string>
+    
+    <!-- Error Messages -->
+    <string name="error_generic">An error occurred: %s</string>
+    <string name="error_network_generic">Network error: %s</string>
+    <string name="error_host_not_found">Device not found. Make sure the device is online and check the IP address.</string>
+    <string name="error_connection_failed">Failed to connect to the device. Please check your network connection and try again.</string>
+    <string name="error_connection_timeout">Connection timed out. The device may be busy or offline. Please try again.</string>
+    <string name="error_file_not_found">File not found. The file may have been moved or deleted.</string>
+    <string name="error_file_access_denied">File access denied. Please check file permissions.</string>
+    <string name="error_file_io_error">File error: %s</string>
+    <string name="error_file_generic">File error: %s</string>
+    <string name="error_transfer_cancelled">Transfer was cancelled</string>
+    <string name="error_transfer_paused">Transfer was paused</string>
+    <string name="error_transfer_failed">Transfer failed: %s</string>
+    <string name="error_transfer_corrupted">Transfer data is corrupted. Please try transferring again.</string>
+    <string name="error_insufficient_storage">Not enough storage space available. Please free up space and try again.</string>
+    <string name="error_transfer_generic">Transfer error: %s</string>
+    <string name="error_permission_denied">Permission denied. Please grant the required permissions.</string>
+    <string name="error_permission_generic">Permission error: %s</string>
+    
+    <!-- Troubleshooting Tips -->
+    <string name="tip_check_wifi_connection">Check your Wi-Fi connection and ensure you\'re connected to the correct network.</string>
+    <string name="tip_verify_device_online">Make sure both devices are online and accessible on the same network.</string>
+    <string name="try_different_network">Try connecting to a different network if available.</string>
+    <string name="tip_restart_router">Restart your router if connection issues persist.</string>
+    <string name="tip_check_firewall">Check if firewall or antivirus software is blocking the connection.</string>
+    <string name="tip_check_file_exists">Verify the file still exists at the specified location.</string>
+    <string name="tip_verify_file_permissions">Check if you have read permissions for the selected file.</string>
+    <string name="tip_check_storage_space">Ensure you have enough free storage space for the transfer.</string>
+    <string name="tip_try_different_file">Try selecting a different file to transfer.</string>
+    <string name="tip_restart_app">Restart the Slip app and try again.</string>
+    <string name="tip_check_network_stability">Ensure your network connection is stable during transfers.</string>
+    <string name="tip_verify_both_devices_online">Make sure both sending and receiving devices have stable internet connections.</string>
+    <string name="tip_restart_transfer">Try restarting the transfer from the beginning.</string>
+    <string name="tip_verify_file_integrity">Verify the source file is not corrupted.</string>
+    <string name="tip_retransfer_file">Try transferring the file again.</string>
+    <string name="tip_free_up_storage">Free up storage space on your device.</string>
+    <string name="tip_change_save_location">Change the save location for received files.</string>
+    <string name="tip_grant_permissions">Grant the necessary permissions in your device settings.</string>
+    <string name="tip_check_app_settings">Check app settings for any permission issues.</string>
+    <string name="tip_restart_app_after_permissions">Restart the app after granting permissions.</string>
+    <string name="tip_check_android_permissions">Check Android settings for app permissions.</string>
+    <string name="tip_update_app">Update to the latest version of the Slip app.</string>
+    <string name="tip_contact_support">Contact Slip support for further assistance.</string>
+    
+    <!-- Suggested Actions -->
+    <string name="action_retry_transfer">Retry Transfer</string>
+    <string name="action_check_network">Check Network</string>
+    <string name="action_change_network">Change Network</string>
+    <string name="action_select_different_file">Select Different File</string>
+    <string name="action_check_permissions">Check Permissions</string>
+    <string name="action_free_storage">Free Storage</string>
+    <string name="action_resume_transfer">Resume Transfer</string>
+    <string name="action_restart_app">Restart App</string>
+    <string name="action_grant_permissions">Grant Permissions</string>
+    <string name="action_open_settings">Open Settings</string>
+    <string name="action_contact_support">Contact Support</string>
+    <string name="action_retry">Retry</string>
 </resources>
