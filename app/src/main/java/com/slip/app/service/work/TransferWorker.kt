@@ -6,6 +6,8 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.slip.app.domain.model.TransferSession
 import com.slip.app.domain.model.TransferStatus
+import com.slip.app.data.repository.PersistentTransferRepository
+import com.slip.app.data.repository.ChunkRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
@@ -19,6 +21,7 @@ class TransferWorker(
     
     companion object {
         private const val TAG = "TransferWorker"
+        private const val PROGRESS_UPDATE_INTERVAL_MS = 1000L
         
         // Input data keys
         const val KEY_TRANSFER_SESSION = "transfer_session"
@@ -33,77 +36,117 @@ class TransferWorker(
         const val TRANSFER_WORK_NAME = "transfer_work"
     }
     
+    private lateinit var persistentRepository: PersistentTransferRepository
+    private lateinit var chunkRepository: ChunkRepository
+    
     override suspend fun doWork(): Result {
-        Log.d(TAG, "TransferWorker started")
-        
         try {
-            // Get transfer session from input data
-            val transferSession = getTransferSessionFromInput()
-            if (transferSession == null) {
-                Log.e(TAG, "No transfer session provided")
-                return Result.failure()
+            // Initialize repositories
+            persistentRepository = PersistentTransferRepository.getInstance(applicationContext)
+            chunkRepository = ChunkRepository.getInstance(applicationContext)
+            
+            // Get transfer session
+            val transferSessionJson = inputData.getString(KEY_TRANSFER_SESSION)
+                ?: return Result.failure(Exception("Transfer session not provided"))
+            
+            val transferSession = com.google.gson.Gson().fromJson(transferSessionJson, TransferSession::class.java)
+            
+            Log.d(TAG, "Starting transfer work for ${transferSession.id}")
+            
+            // Update status to connecting
+            persistentRepository.updateTransferStatus(transferSession.id, TransferStatus.CONNECTING)
+            
+            // Perform transfer based on type
+            val result = when (transferSession.type) {
+                com.slip.app.domain.model.TransferType.SEND_FILES -> performSendTransfer(transferSession)
+                com.slip.app.domain.model.TransferType.SEND_FOLDER -> performSendTransfer(transferSession)
+                com.slip.app.domain.model.TransferType.RECEIVE_FILES -> performReceiveTransfer(transferSession)
+                com.slip.app.domain.model.TransferType.RECEIVE_FOLDER -> performReceiveTransfer(transferSession)
             }
             
-            Log.d(TAG, "Processing transfer: ${transferSession.id}")
-            
-            // Simulate transfer work (will be replaced with actual transfer logic)
-            val success = performTransferWork(transferSession)
-            
-            return if (success) {
-                Log.d(TAG, "Transfer completed successfully")
-                Result.success(createSuccessOutput())
-            } else {
-                Log.w(TAG, "Transfer failed, will retry")
-                Result.retry()
-            }
+            return result
             
         } catch (e: Exception) {
-            Log.e(TAG, "Transfer worker failed", e)
-            return Result.retry()
+            Log.e(TAG, "Transfer work failed", e)
+            
+            // Update transfer status to failed
+            val transferId = inputData.getString(KEY_TRANSFER_ID)
+            transferId?.let {
+                persistentRepository.updateTransferStatus(it, TransferStatus.FAILED, e.message)
+            }
+            
+            return Result.failure(e)
         }
     }
     
-    private fun getTransferSessionFromInput(): TransferSession? {
-        return try {
-            // In a real implementation, we would serialize/deserialize TransferSession
-            // For now, create a dummy session for testing
-            TransferSession(
-                id = inputData.getString(KEY_TRANSFER_ID) ?: "unknown",
-                type = com.slip.app.domain.model.TransferType.SEND_FILES,
-                status = TransferStatus.PENDING,
-                totalSize = inputData.getLong("total_size", 0L)
-            )
+    /**
+     * Perform send transfer
+     */
+    private suspend fun performSendTransfer(transferSession: TransferSession): Result {
+        try {
+            Log.d(TAG, "Performing send transfer for ${transferSession.id}")
+            
+            // Update status to in progress
+            persistentRepository.updateTransferStatus(transferSession.id, TransferStatus.IN_PROGRESS)
+            
+            // TODO: Implement actual send transfer logic using TransferManager
+            // For now, simulate progress
+            var progress = 0f
+            while (progress < 100f) {
+                progress += 10f
+                delay(1000)
+                
+                // Update progress
+                val updatedSession = transferSession.copy(progress = progress)
+                persistentRepository.saveTransferSession(updatedSession)
+            }
+            
+            // Mark as completed
+            persistentRepository.updateTransferStatus(transferSession.id, TransferStatus.COMPLETED)
+            
+            Log.d(TAG, "Send transfer completed: ${transferSession.id}")
+            return Result.success()
+            
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse transfer session", e)
-            null
+            Log.e(TAG, "Send transfer failed", e)
+            persistentRepository.updateTransferStatus(transferSession.id, TransferStatus.FAILED, e.message)
+            return Result.failure(e)
         }
     }
     
-    private suspend fun performTransferWork(transferSession: TransferSession): Boolean {
-        Log.d(TAG, "Starting transfer work for ${transferSession.id}")
-        
-        // Simulate transfer progress
-        var progress = 0
-        val maxProgress = 100
-        val stepDelay = 2000L // 2 seconds per step
-        
-        while (progress < maxProgress) {
-            delay(stepDelay)
-            progress += 10
+    /**
+     * Perform receive transfer
+     */
+    private suspend fun performReceiveTransfer(transferSession: TransferSession): Result {
+        try {
+            Log.d(TAG, "Performing receive transfer for ${transferSession.id}")
             
-            Log.d(TAG, "Transfer progress: $progress%")
+            // Update status to in progress
+            persistentRepository.updateTransferStatus(transferSession.id, TransferStatus.IN_PROGRESS)
             
-            // Check if work should be stopped
-            if (isStopped) {
-                Log.d(TAG, "Work was stopped")
-                return false
+            // TODO: Implement actual receive transfer logic using TransferManager
+            // For now, simulate progress
+            var progress = 0f
+            while (progress < 100f) {
+                progress += 10f
+                delay(1000)
+                
+                // Update progress
+                val updatedSession = transferSession.copy(progress = progress)
+                persistentRepository.saveTransferSession(updatedSession)
             }
             
-            // Update progress (in a real implementation, this would update the TransferService)
-            setProgressAsync(createProgressOutput(progress))
+            // Mark as completed
+            persistentRepository.updateTransferStatus(transferSession.id, TransferStatus.COMPLETED)
+            
+            Log.d(TAG, "Receive transfer completed: ${transferSession.id}")
+            return Result.success()
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Receive transfer failed", e)
+            persistentRepository.updateTransferStatus(transferSession.id, TransferStatus.FAILED, e.message)
+            return Result.failure(e)
         }
-        
-        return true
     }
     
     private fun createSuccessOutput(): androidx.work.Data {

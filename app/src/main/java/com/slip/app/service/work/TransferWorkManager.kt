@@ -6,6 +6,7 @@ import androidx.lifecycle.asFlow
 import androidx.work.*
 import com.slip.app.domain.model.TransferSession
 import com.slip.app.domain.model.TransferStatus
+import com.slip.app.data.repository.PersistentTransferRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.concurrent.TimeUnit
@@ -17,6 +18,7 @@ class TransferWorkManager(private val context: Context) {
     
     companion object {
         private const val TAG = "TransferWorkManager"
+        private const val TRANSFER_WORK_TAG = "transfer_work"
         
         // Unique work names
         const val UNIQUE_TRANSFER_WORK = "unique_transfer_work"
@@ -27,12 +29,16 @@ class TransferWorkManager(private val context: Context) {
     }
     
     private val workManager = WorkManager.getInstance(context)
+    private val persistentRepository = PersistentTransferRepository.getInstance(context)
     
     /**
      * Schedule a transfer work request
      */
-    fun scheduleTransfer(transferSession: TransferSession): WorkInfo {
+    suspend fun scheduleTransfer(transferSession: TransferSession): WorkInfo {
         Log.d(TAG, "Scheduling transfer work for ${transferSession.id}")
+        
+        // Save transfer session
+        persistentRepository.saveTransferSession(transferSession)
         
         // Create work request
         val workRequest = createTransferWorkRequest(transferSession)
@@ -91,11 +97,39 @@ class TransferWorkManager(private val context: Context) {
     }
     
     /**
-     * Cancel transfer work
+     * Restart a transfer (for resume/retry)
      */
-    fun cancelTransfer() {
-        Log.d(TAG, "Cancelling transfer work")
+    suspend fun restartTransfer(transferSession: TransferSession): WorkInfo {
+        Log.d(TAG, "Restarting transfer work for ${transferSession.id}")
+        
+        // Update session status
+        persistentRepository.saveTransferSession(transferSession)
+        
+        // Create new work request
+        val workRequest = createTransferWorkRequest(transferSession)
+        
+        // Enqueue unique work
+        workManager.enqueueUniqueWork(
+            UNIQUE_TRANSFER_WORK,
+            ExistingWorkPolicy.REPLACE,
+            workRequest
+        )
+        
+        // Get work info
+        return getWorkInfo(transferSession.id)
+    }
+    
+    /**
+     * Cancel a transfer
+     */
+    suspend fun cancelTransfer(sessionId: String) {
+        Log.d(TAG, "Cancelling transfer work for $sessionId")
+        
+        // Cancel work
         workManager.cancelUniqueWork(UNIQUE_TRANSFER_WORK)
+        
+        // Update status
+        persistentRepository.updateTransferStatus(sessionId, TransferStatus.CANCELLED)
     }
     
     /**
@@ -103,6 +137,17 @@ class TransferWorkManager(private val context: Context) {
      */
     fun getTransferWorkInfo(): Flow<WorkInfo> {
         return workManager.getWorkInfosForUniqueWorkLiveData(UNIQUE_TRANSFER_WORK).asFlow()
+    }
+    
+    /**
+     * Get work info for specific transfer
+     */
+    fun getWorkInfo(sessionId: String): WorkInfo {
+        // For now, return the current work info
+        // In a real implementation, you'd track multiple concurrent transfers
+        return workManager.getWorkInfosForUniqueWorkLiveData(UNIQUE_TRANSFER_WORK).asFlow().map { workInfos ->
+            workInfos.firstOrNull()
+        }.value ?: throw IllegalStateException("No work info found for $sessionId")
     }
     
     /**

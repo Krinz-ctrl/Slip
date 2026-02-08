@@ -45,6 +45,9 @@ dependencies {
     // WorkManager for background operations
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     
+    // JSON serialization
+    implementation("com.google.code.gson:gson:2.10.1")
+    
     // mDNS discovery - temporarily commented out
     // implementation("javax.jmdns:jmdns:3.4.1")
     

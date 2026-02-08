@@ -15,6 +15,7 @@ import com.slip.app.R
 import com.slip.app.domain.model.TransferSession
 import com.slip.app.domain.model.TransferStatus
 import com.slip.app.data.repository.TransferRepository
+import com.slip.app.data.repository.PersistentTransferRepository
 import com.slip.app.service.work.TransferWorkManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -88,7 +89,8 @@ class TransferService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var notificationManager: NotificationManager
     private lateinit var transferRepository: TransferRepository
-    private lateinit var workManager: TransferWorkManager
+    private lateinit var persistentRepository: PersistentTransferRepository
+    private lateinit var transferWorkManager: TransferWorkManager
     
     // Current transfer session
     private var currentTransferSession: TransferSession? = null
@@ -99,17 +101,25 @@ class TransferService : Service() {
     
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "TransferService created")
         
+        // Initialize dependencies
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         transferRepository = TransferRepository.getInstance(this)
-        workManager = TransferWorkManager(this)
+        persistentRepository = PersistentTransferRepository.getInstance(this)
+        transferWorkManager = TransferWorkManager(this)
         
-        // Restore transfer state on service creation
-        transferRepository.restoreTransferState()
+        // Create notification channel
+        createNotificationChannel()
         
-        // Listen to work manager updates
-        observeWorkManagerUpdates()
+        // Resume interrupted transfers
+        serviceScope.launch {
+            val resumableTransfers = persistentRepository.resumeInterruptedTransfers()
+            if (resumableTransfers.isNotEmpty()) {
+                Log.d(TAG, "Resumed ${resumableTransfers.size} interrupted transfers")
+            }
+        }
+        
+        Log.d(TAG, "TransferService created")
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
